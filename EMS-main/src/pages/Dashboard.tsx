@@ -40,18 +40,38 @@ export const Dashboard: React.FC = () => {
 
   useEffect(() => {
     if (isAdmin) {
-      // Mock data - in real app, this would come from API
-      const mockStats = {
-        totalEmployees: 25,
-        presentToday: 22,
-        totalSalaryPaid: 125000,
-        documentsUploaded: 48,
-        attendanceRate: 88,
-        avgSalary: 5000,
-        approvedLeaves: 5,
-        pendingLeaves: 3,
+      const fetchStats = async () => {
+        try {
+          const token = localStorage.getItem('authToken');
+          const response = await fetch('http://localhost:5001/api/dashboard/stats', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch dashboard stats');
+          }
+
+          const data = await response.json();
+          setStats(data.stats);
+        } catch (error) {
+          console.error('Error fetching dashboard stats:', error);
+          // Fallback to zero values
+          setStats({
+            totalEmployees: 0,
+            presentToday: 0,
+            totalSalaryPaid: 0,
+            documentsUploaded: 0,
+            attendanceRate: 0,
+            avgSalary: 0,
+            approvedLeaves: 0,
+            pendingLeaves: 0,
+          });
+        }
       };
-      setStats(mockStats);
+
+      fetchStats();
     }
   }, [isAdmin]);
 

@@ -61,12 +61,13 @@ exports.uploadDocument = [
       }
 
       const filePath = req.file.filename;
+      const fileSize = req.file.size;
 
       // Save document record to database
       const result = await new Promise((resolve, reject) => {
         db.run(
-          'INSERT INTO documents (employee_id, document_type, file_path) VALUES (?, ?, ?)',
-          [employee.id, documentType || 'other', filePath],
+          'INSERT INTO documents (employee_id, document_type, file_path, file_size) VALUES (?, ?, ?, ?)',
+          [employee.id, documentType || 'other', filePath, fileSize],
           function(err) {
             if (err) reject(err);
             else resolve({ id: this.lastID });
@@ -81,6 +82,7 @@ exports.uploadDocument = [
           employee_id: employee.id,
           document_type: documentType || 'other',
           file_path: filePath,
+          file_size: fileSize,
           uploaded_at: new Date().toISOString()
         }
       });
@@ -99,6 +101,7 @@ exports.getAllDocuments = async (req, res) => {
         d.employee_id,
         d.document_type,
         d.file_path,
+        d.file_size,
         d.uploaded_at,
         u.firstName,
         u.lastName
@@ -144,6 +147,7 @@ exports.getEmployeeDocuments = async (req, res) => {
         d.employee_id,
         d.document_type,
         d.file_path,
+        d.file_size,
         d.uploaded_at
       FROM documents d
       WHERE d.employee_id = ?

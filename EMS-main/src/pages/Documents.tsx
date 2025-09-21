@@ -66,7 +66,7 @@ export const Documents: React.FC = () => {
         name: doc.file_path, // Use file_path as name for display
         category: doc.document_type,
         uploadDate: doc.uploaded_at ? new Date(doc.uploaded_at).toISOString().split('T')[0] : '',
-        size: 0 // Size not stored in DB, could be calculated from file
+        size: doc.file_size || 0 // Use actual file size from database
       }));
 
       setDocuments(transformedDocs);

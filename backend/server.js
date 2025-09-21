@@ -42,6 +42,7 @@ app.use('/api/employees', require('./routes/employeeRoutes'));
 app.use('/api/salaries', require('./routes/salaryRoutes'));
 app.use('/api/leaves', require('./routes/leaveRoutes'));
 app.use('/api/documents', require('./routes/documentRoutes'));
+app.use('/api/dashboard', require('./routes/dashboardRoutes'));
 // Add other routes as needed
 
 // Health check

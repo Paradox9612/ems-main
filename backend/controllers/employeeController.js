@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 
 exports.getAllEmployees = async (req, res) => {
   try {
-    // Get all users with employee role and their employee details
+    // Get all users with employee role and their employee details, including latest salary
     const query = `
       SELECT
         u.id,
@@ -17,10 +17,21 @@ exports.getAllEmployees = async (req, res) => {
         e.position,
         e.department,
         e.hireDate,
-        e.salary,
-        e.status
+        e.salary as base_salary,
+        e.status,
+        s.amount as current_salary,
+        s.status as salary_status,
+        s.month,
+        s.year
       FROM users u
       LEFT JOIN employees e ON u.id = e.user_id
+      LEFT JOIN salaries s ON e.id = s.employee_id
+        AND s.id = (
+          SELECT id FROM salaries s2
+          WHERE s2.employee_id = e.id
+          ORDER BY s2.year DESC, s2.month DESC, s2.paid_at DESC
+          LIMIT 1
+        )
       WHERE u.role = 'employee'
       ORDER BY u.created_at DESC
     `;
@@ -32,7 +43,13 @@ exports.getAllEmployees = async (req, res) => {
       });
     });
 
-    res.json({ employees });
+    // Transform the data to use current_salary if available, otherwise base_salary
+    const transformedEmployees = employees.map(emp => ({
+      ...emp,
+      salary: emp.current_salary || emp.base_salary
+    }));
+
+    res.json({ employees: transformedEmployees });
   } catch (error) {
     console.error('Get all employees error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -73,16 +90,34 @@ exports.createEmployee = async (req, res) => {
       status: 'active'
     };
 
-    await new Promise((resolve, reject) => {
+    const employeeResult = await new Promise((resolve, reject) => {
       db.run(
         'INSERT INTO employees (user_id, phone, position, department, hireDate, salary, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [employeeData.user_id, employeeData.phone, employeeData.position, employeeData.department, employeeData.hireDate, employeeData.salary, employeeData.status],
         function(err) {
           if (err) reject(err);
-          else resolve(this.lastID);
+          else resolve({ id: this.lastID });
         }
       );
     });
+
+    // If salary was provided, create salary record
+    if (salary) {
+      const now = new Date();
+      const currentMonth = now.getMonth() + 1; // JavaScript months are 0-indexed
+      const currentYear = now.getFullYear();
+
+      await new Promise((resolve, reject) => {
+        db.run(
+          'INSERT INTO salaries (employee_id, amount, month, year, base_salary, status) VALUES (?, ?, ?, ?, ?, ?)',
+          [employeeResult.id, parseFloat(salary), currentMonth, currentYear, parseFloat(salary), 'paid'],
+          function(err) {
+            if (err) reject(err);
+            else resolve(this.lastID);
+          }
+        );
+      });
+    }
 
     // Return employee data without password
     const employeeResponse = {
@@ -193,6 +228,61 @@ exports.updateEmployee = async (req, res) => {
       }
     }
 
+    // If salary was updated, also create/update salary record
+    if (salary !== undefined) {
+      // Get employee record to get employee_id
+      const employee = await new Promise((resolve, reject) => {
+        db.get('SELECT id FROM employees WHERE user_id = ?', [id], (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        });
+      });
+
+      if (employee) {
+        const now = new Date();
+        const currentMonth = now.getMonth() + 1; // JavaScript months are 0-indexed
+        const currentYear = now.getFullYear();
+
+        // Check if salary record already exists for current month/year
+        const existingSalary = await new Promise((resolve, reject) => {
+          db.get(
+            'SELECT id FROM salaries WHERE employee_id = ? AND month = ? AND year = ?',
+            [employee.id, currentMonth, currentYear],
+            (err, row) => {
+              if (err) reject(err);
+              else resolve(row);
+            }
+          );
+        });
+
+        if (existingSalary) {
+          // Update existing salary record
+          await new Promise((resolve, reject) => {
+            db.run(
+              'UPDATE salaries SET amount = ?, base_salary = ?, status = ? WHERE id = ?',
+              [parseFloat(salary), parseFloat(salary), 'paid', existingSalary.id],
+              function(err) {
+                if (err) reject(err);
+                else resolve(this.changes);
+              }
+            );
+          });
+        } else {
+          // Create new salary record
+          await new Promise((resolve, reject) => {
+            db.run(
+              'INSERT INTO salaries (employee_id, amount, month, year, base_salary, status) VALUES (?, ?, ?, ?, ?, ?)',
+              [employee.id, parseFloat(salary), currentMonth, currentYear, parseFloat(salary), 'paid'],
+              function(err) {
+                if (err) reject(err);
+                else resolve(this.lastID);
+              }
+            );
+          });
+        }
+      }
+    }
+
     res.json({ message: 'Employee updated successfully' });
   } catch (error) {
     console.error('Update employee error:', error);
@@ -243,10 +333,21 @@ exports.getEmployeeById = async (req, res) => {
         e.position,
         e.department,
         e.hireDate,
-        e.salary,
-        e.status
+        e.salary as base_salary,
+        e.status,
+        s.amount as current_salary,
+        s.status as salary_status,
+        s.month,
+        s.year
       FROM users u
       LEFT JOIN employees e ON u.id = e.user_id
+      LEFT JOIN salaries s ON e.id = s.employee_id
+        AND s.id = (
+          SELECT id FROM salaries s2
+          WHERE s2.employee_id = e.id
+          ORDER BY s2.year DESC, s2.month DESC, s2.paid_at DESC
+          LIMIT 1
+        )
       WHERE u.id = ? AND u.role = 'employee'
     `;
 
@@ -261,7 +362,13 @@ exports.getEmployeeById = async (req, res) => {
       return res.status(404).json({ error: 'Employee not found' });
     }
 
-    res.json({ employee });
+    // Transform the data to use current_salary if available, otherwise base_salary
+    const transformedEmployee = {
+      ...employee,
+      salary: employee.current_salary || employee.base_salary
+    };
+
+    res.json({ employee: transformedEmployee });
   } catch (error) {
     console.error('Get employee by ID error:', error);
     res.status(500).json({ error: 'Internal server error' });

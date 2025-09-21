@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS documents (
   employee_id INTEGER,
   document_type TEXT,
   file_path TEXT,
+  file_size INTEGER,
   uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
 );

@@ -75,10 +75,23 @@ exports.clockOut = async (req, res) => {
 
 exports.getEmployeeAttendance = async (req, res) => {
   try {
-    const { employeeId } = req.params;
+    const userId = req.user.id; // Get user ID from JWT token
     const limit = parseInt(req.query.limit) || 30;
 
-    const records = await Attendance.getByEmployee(employeeId, limit);
+    // Look up employee record for this user
+    const db = require('../config/db');
+    const employee = await new Promise((resolve, reject) => {
+      db.get('SELECT id FROM employees WHERE user_id = ?', [userId], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    if (!employee) {
+      return res.status(404).json({ error: 'Employee record not found. Please contact administrator.' });
+    }
+
+    const records = await Attendance.getByEmployee(employee.id, limit);
 
     res.json({ records });
   } catch (error) {

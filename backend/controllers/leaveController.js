@@ -80,7 +80,22 @@ exports.createLeave = async (req, res) => {
 // Get employee's own leave applications
 exports.getEmployeeLeaves = async (req, res) => {
   try {
-    const employeeId = req.user.id;
+    const userId = req.user.id;
+
+    // First, find the employee record for this user
+    const employeeSql = 'SELECT id FROM employees WHERE user_id = ?';
+    const employee = await new Promise((resolve, reject) => {
+      db.get(employeeSql, [userId], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    if (!employee) {
+      return res.status(404).json({ error: 'Employee record not found. Please contact administrator.' });
+    }
+
+    const employeeId = employee.id;
 
     const sql = `
       SELECT la.*, u.firstName, u.lastName, u.email
@@ -222,7 +237,7 @@ exports.getLeaveStats = async (req, res) => {
 exports.deleteLeave = async (req, res) => {
   try {
     const { id } = req.params;
-    const employeeId = req.user.id;
+    const userId = req.user.id;
     const isAdmin = req.user.role === 'admin';
 
     let sql;
@@ -232,8 +247,21 @@ exports.deleteLeave = async (req, res) => {
       sql = 'DELETE FROM leave_applications WHERE id = ?';
       params = [id];
     } else {
+      // First, find the employee record for this user
+      const employeeSql = 'SELECT id FROM employees WHERE user_id = ?';
+      const employee = await new Promise((resolve, reject) => {
+        db.get(employeeSql, [userId], (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        });
+      });
+
+      if (!employee) {
+        return res.status(404).json({ error: 'Employee record not found. Please contact administrator.' });
+      }
+
       sql = 'DELETE FROM leave_applications WHERE id = ? AND employee_id = ? AND status = "pending"';
-      params = [id, employeeId];
+      params = [id, employee.id];
     }
 
     db.run(sql, params, function(err) {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Users,
@@ -10,6 +10,7 @@ import {
   X,
   User,
   Calendar,
+  TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -17,11 +18,22 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
+interface SalaryStats {
+  totalPaid: number;
+  totalPending: number;
+  averageSalary: number;
+  totalRecords: number;
+}
+
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [salaryStats, setSalaryStats] = useState<SalaryStats | null>(null);
   const { signOut, user, isAdmin } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+
+  // API base URL
+  const API_BASE_URL = 'http://localhost:5001/api';
 
   const navigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard, adminOnly: true },
@@ -40,6 +52,42 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const filteredNavigation = navigation.filter(
     (item) => !item.adminOnly || (item.adminOnly && isAdmin)
   );
+
+  // Load salary stats for employees and admins
+  const loadSalaryStats = async () => {
+    if (!user) return;
+
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/salaries/stats/employee`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSalaryStats(data);
+      }
+    } catch (error) {
+      console.error('Error loading salary stats:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadSalaryStats();
+
+    // Listen for salary updates to refresh stats
+    const handleSalaryUpdate = () => {
+      loadSalaryStats();
+    };
+
+    window.addEventListener('salaryUpdated', handleSalaryUpdate);
+
+    return () => {
+      window.removeEventListener('salaryUpdated', handleSalaryUpdate);
+    };
+  }, [user, isAdmin]);
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -93,6 +141,34 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               );
             })}
           </nav>
+
+          {/* Salary Section */}
+          {salaryStats && (
+            <div className="p-4 border-t border-gray-700">
+              <div className="flex items-center space-x-2 mb-3">
+                <TrendingUp className="h-4 w-4 text-green-400" />
+                <span className="text-sm font-medium text-white">Salary Overview</span>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-300">Total Paid:</span>
+                  <span className="text-green-400 font-medium">${salaryStats.totalPaid.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-300">Pending:</span>
+                  <span className="text-yellow-400 font-medium">${salaryStats.totalPending.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-300">Average:</span>
+                  <span className="text-blue-400 font-medium">${Math.round(salaryStats.averageSalary).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-300">Records:</span>
+                  <span className="text-purple-400 font-medium">{salaryStats.totalRecords}</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Profile at bottom */}
           <div className="p-4 border-t border-gray-700">

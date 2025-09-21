@@ -123,8 +123,8 @@ const LeaveApplication: React.FC = () => {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to submit leave application');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to submit leave application');
       }
 
       // Reset form
@@ -139,7 +139,9 @@ const LeaveApplication: React.FC = () => {
       alert('Leave application submitted successfully!');
     } catch (error) {
       console.error('Error submitting leave:', error);
-      alert('Failed to submit leave application. Please try again.');
+      // Show the specific error message from backend if available
+      const errorMessage = error instanceof Error ? error.message : 'Failed to submit leave application. Please try again.';
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }

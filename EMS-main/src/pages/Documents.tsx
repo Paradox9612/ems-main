@@ -3,15 +3,21 @@ import { FileText, Upload, Download, Trash2, Search, Eye, File, FolderOpen } fro
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 
+// API base URL
+const API_BASE_URL = 'http://localhost:5001/api';
+
 interface Document {
-  id: string;
-  userId: string;
-  employeeName: string;
-  name: string;
-  type: string;
-  size: number;
-  uploadDate: string;
-  category: 'contract' | 'certificate' | 'report' | 'other';
+  id: number;
+  employee_id: number;
+  document_type: string;
+  file_path: string;
+  uploaded_at: string;
+  firstName?: string;
+  lastName?: string;
+  employeeName?: string;
+  name?: string;
+  size?: number;
+  category?: string;
 }
 
 export const Documents: React.FC = () => {
@@ -21,21 +27,62 @@ export const Documents: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedDocumentType, setSelectedDocumentType] = useState<string>('other');
 
-  // Load documents from localStorage (simulate DB)
-  useEffect(() => {
-    const storedDocs = localStorage.getItem('documents');
-    if (storedDocs) {
-      setDocuments(JSON.parse(storedDocs));
+  // Load documents from backend
+  const loadDocuments = async () => {
+    if (!user) return;
+
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      let response;
+
+      if (isAdmin) {
+        response = await fetch(`${API_BASE_URL}/documents`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      } else {
+        response = await fetch(`${API_BASE_URL}/documents/employee`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to load documents');
+      }
+
+      const data = await response.json();
+      const docs = data.documents || [];
+
+      // Transform backend data to match frontend interface
+      const transformedDocs = docs.map((doc: any) => ({
+        ...doc,
+        employeeName: doc.firstName && doc.lastName ? `${doc.firstName} ${doc.lastName}` : undefined,
+        name: doc.file_path, // Use file_path as name for display
+        category: doc.document_type,
+        uploadDate: doc.uploaded_at ? new Date(doc.uploaded_at).toISOString().split('T')[0] : '',
+        size: 0 // Size not stored in DB, could be calculated from file
+      }));
+
+      setDocuments(transformedDocs);
+    } catch (error) {
+      console.error('Error loading documents:', error);
+      setDocuments([]);
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  };
 
-  // Save documents to localStorage whenever updated
   useEffect(() => {
-    localStorage.setItem('documents', JSON.stringify(documents));
-  }, [documents]);
+    loadDocuments();
+  }, [user, isAdmin]);
 
-  const handleUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !user) return;
 
@@ -51,35 +98,91 @@ export const Documents: React.FC = () => {
 
     setUploading(true);
 
-    setTimeout(() => {
-      const newDocument: Document = {
-        id: Date.now().toString(),
-        userId: user.id,
-        employeeName: `${user.firstName} ${user.lastName}`,
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        uploadDate: new Date().toISOString().split('T')[0],
-        category: 'other',
-      };
+    try {
+      const token = localStorage.getItem('authToken');
+      const formData = new FormData();
+      formData.append('document', file);
+      formData.append('documentType', selectedDocumentType);
 
-      setDocuments((prev) => [newDocument, ...prev]);
-      setUploading(false);
+      const response = await fetch(`${API_BASE_URL}/documents/upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to upload document');
+      }
+
+      // Reload documents to get updated data
+      loadDocuments();
       event.target.value = '';
-    }, 2000);
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Failed to upload document. Please try again.');
+    } finally {
+      setUploading(false);
+    }
   };
 
-  const handleDownload = (doc: Document) => {
-    alert(`Downloading ${doc.name}... (demo only)`);
+  const handleDownload = async (doc: Document) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/documents/download/${doc.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download document');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.name || 'document.pdf';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Failed to download document. Please try again.');
+    }
   };
 
   const handlePreview = (doc: Document) => {
-    alert(`Previewing ${doc.name}... (demo only)`);
+    // For now, just download as preview
+    handleDownload(doc);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this document?')) return;
-    setDocuments((prev) => prev.filter((doc) => doc.id !== id));
+
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/documents/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete document');
+      }
+
+      // Reload documents to get updated data
+      loadDocuments();
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert('Failed to delete document. Please try again.');
+    }
   };
 
   const formatFileSize = (bytes: number) => {
@@ -100,15 +203,11 @@ export const Documents: React.FC = () => {
     }
   };
 
-  // Filter docs: employees only see their own, admin sees all
-  const visibleDocuments = isAdmin
-    ? documents
-    : documents.filter((doc) => doc.userId === user?.id);
-
-  const filteredDocuments = visibleDocuments.filter((doc) => {
+  // Documents are already filtered by API (employees get their own, admin gets all)
+  const filteredDocuments = documents.filter((doc) => {
     const matchesSearch =
-      doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doc.employeeName.toLowerCase().includes(searchTerm.toLowerCase());
+      (doc.name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+      (doc.employeeName?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
     const matchesCategory =
       selectedCategory === 'all' || doc.category === selectedCategory;
     return matchesSearch && matchesCategory;
@@ -137,17 +236,29 @@ export const Documents: React.FC = () => {
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Upload New Document</h2>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <label className="relative cursor-pointer bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-lg flex items-center space-x-2 transition-all duration-200 shadow-lg hover:shadow-xl">
-                <Upload className="h-4 w-4" />
-                <span>{uploading ? 'Uploading...' : 'Choose PDF File'}</span>
-                <input
-                  type="file"
-                  accept=".pdf"
-                  onChange={handleUpload}
-                  disabled={uploading}
-                  className="hidden"
-                />
-              </label>
+              <div className="flex items-center space-x-2">
+                <select
+                  value={selectedDocumentType}
+                  onChange={(e) => setSelectedDocumentType(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                >
+                  <option value="contract">Contract</option>
+                  <option value="certificate">Certificate</option>
+                  <option value="report">Report</option>
+                  <option value="other">Other</option>
+                </select>
+                <label className="relative cursor-pointer bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-lg flex items-center space-x-2 transition-all duration-200 shadow-lg hover:shadow-xl">
+                  <Upload className="h-4 w-4" />
+                  <span>{uploading ? 'Uploading...' : 'Choose PDF File'}</span>
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    onChange={handleUpload}
+                    disabled={uploading}
+                    className="hidden"
+                  />
+                </label>
+              </div>
               {uploading && (
                 <div className="flex items-center space-x-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
@@ -235,7 +346,7 @@ export const Documents: React.FC = () => {
                           <FileText className="h-5 w-5 text-red-600" />
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{doc.name}</div>
+                          <div className="text-sm font-medium text-gray-900">{doc.name || 'Document'}</div>
                           <div className="text-sm text-gray-500">PDF Document</div>
                         </div>
                       </div>
@@ -245,27 +356,27 @@ export const Documents: React.FC = () => {
                         <div className="flex items-center">
                           <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full flex items-center justify-center mr-3">
                             <span className="text-xs font-medium text-white">
-                              {doc.employeeName.split(' ').map((n) => n[0]).join('')}
+                              {doc.employeeName?.split(' ').map((n) => n[0]).join('') || '?'}
                             </span>
                           </div>
-                          <div className="text-sm font-medium text-gray-900">{doc.employeeName}</div>
+                          <div className="text-sm font-medium text-gray-900">{doc.employeeName || 'Unknown'}</div>
                         </div>
                       </td>
                     )}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getCategoryColor(
-                          doc.category
+                          doc.category || 'other'
                         )}`}
                       >
                         {doc.category}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatFileSize(doc.size)}
+                      {formatFileSize(doc.size || 0)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(doc.uploadDate).toLocaleDateString()}
+                      {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : 'Unknown'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
@@ -281,7 +392,7 @@ export const Documents: React.FC = () => {
                         >
                           <Download className="h-4 w-4" />
                         </button>
-                        {(isAdmin || doc.userId === user?.id) && (
+                        {isAdmin && (
                           <button
                             onClick={() => handleDelete(doc.id)}
                             className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-50"

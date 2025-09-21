@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, Mail, Phone, Calendar, MapPin } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Mail, Phone, Calendar, MapPin, Check, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 
@@ -27,6 +27,7 @@ export const Employees: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [editingSalary, setEditingSalary] = useState<{ id: string; salary: string } | null>(null);
 
   // Load employees from backend
   const loadEmployees = async () => {
@@ -131,6 +132,9 @@ export const Employees: React.FC = () => {
       // Reload employees list
       await loadEmployees();
 
+      // Notify other components about salary update
+      window.dispatchEvent(new CustomEvent('salaryUpdated'));
+
       // Reset form and close modal
       setShowModal(false);
       setEditingEmployee(null);
@@ -195,6 +199,35 @@ export const Employees: React.FC = () => {
     } catch (error) {
       console.error('Error deleting employee:', error);
       alert('Failed to delete employee. Please try again.');
+    }
+  };
+
+  const handleQuickSalaryUpdate = async (employeeId: string, newSalary: number) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/employees/${employeeId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ salary: newSalary })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update salary');
+      }
+
+      // Reload employees list to reflect changes
+      await loadEmployees();
+      setEditingSalary(null);
+
+      // Notify other components about salary update
+      window.dispatchEvent(new CustomEvent('salaryUpdated'));
+    } catch (error) {
+      console.error('Error updating salary:', error);
+      alert('Failed to update salary. Please try again.');
     }
   };
 
@@ -273,7 +306,7 @@ export const Employees: React.FC = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredEmployees.map((employee) => (
-                  <tr key={employee.id} className="hover:bg-purple-50 transition-colors">
+                  <tr key={employee.id} className="hover:bg-purple-50 transition-colors group">
                     {/* Employee Info */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -343,7 +376,44 @@ export const Employees: React.FC = () => {
 
                     {/* Salary */}
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                      {employee.salary ? `$${employee.salary.toLocaleString()}` : 'N/A'}
+                      {editingSalary?.id === employee.id ? (
+                        <div className="flex items-center space-x-2">
+                          <span className="text-gray-500">$</span>
+                          <input
+                            type="number"
+                            value={editingSalary.salary}
+                            onChange={(e) => setEditingSalary({ ...editingSalary, salary: e.target.value })}
+                            className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                            min="0"
+                            step="0.01"
+                          />
+                          <button
+                            onClick={() => handleQuickSalaryUpdate(employee.id, parseFloat(editingSalary.salary) || 0)}
+                            className="p-1 text-green-600 hover:text-green-800"
+                            title="Save"
+                          >
+                            <Check className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => setEditingSalary(null)}
+                            className="p-1 text-red-600 hover:text-red-800"
+                            title="Cancel"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center space-x-2">
+                          <span>{employee.salary ? `$${employee.salary.toLocaleString()}` : 'N/A'}</span>
+                          <button
+                            onClick={() => setEditingSalary({ id: employee.id, salary: employee.salary?.toString() || '0' })}
+                            className="p-1 text-blue-600 hover:text-blue-800 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Edit Salary"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )}
                     </td>
 
                     {/* Actions */}

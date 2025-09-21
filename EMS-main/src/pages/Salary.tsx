@@ -198,6 +198,9 @@ export const Salary: React.FC = () => {
       // Reload salary records
       await loadSalaryRecords();
 
+      // Notify other components about salary update
+      window.dispatchEvent(new CustomEvent('salaryUpdated'));
+
       // Reset form and close modal
       setShowModal(false);
       setEditingRecord(null);
@@ -278,6 +281,12 @@ export const Salary: React.FC = () => {
       // Reload salary records and stats
       await loadSalaryRecords();
       await loadSalaryStats();
+
+      // Notify other components about salary update
+      window.dispatchEvent(new CustomEvent('salaryUpdated'));
+
+      // Notify other components about salary update
+      window.dispatchEvent(new CustomEvent('salaryUpdated'));
     } catch (error) {
       console.error('Error updating salary status:', error);
       alert('Failed to update salary status. Please try again.');

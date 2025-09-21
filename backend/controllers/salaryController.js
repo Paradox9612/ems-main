@@ -88,17 +88,32 @@ exports.getEmployeeSalaries = async (req, res) => {
 
 exports.createSalary = async (req, res) => {
   try {
+    console.log('Create salary request body:', req.body);
     const { employeeId, month, year, baseSalary, incentives, deductions, status } = req.body;
 
     if (!employeeId || !month || !year || !baseSalary) {
       return res.status(400).json({ error: 'Employee ID, month, year, and base salary are required' });
     }
 
+    // Check if employee exists (employeeId is user_id from frontend)
+    const employee = await new Promise((resolve, reject) => {
+      db.get('SELECT id FROM employees WHERE user_id = ?', [employeeId], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    if (!employee) {
+      return res.status(400).json({ error: 'Employee does not exist' });
+    }
+
+    const actualEmployeeId = employee.id;
+
     // Check if salary record already exists for this employee/month/year
     const existing = await new Promise((resolve, reject) => {
       db.get(
         'SELECT id FROM salaries WHERE employee_id = ? AND month = ? AND year = ?',
-        [employeeId, month, year],
+        [actualEmployeeId, month, year],
         (err, row) => {
           if (err) reject(err);
           else resolve(row);
@@ -110,14 +125,30 @@ exports.createSalary = async (req, res) => {
       return res.status(409).json({ error: 'Salary record already exists for this employee and period' });
     }
 
-    const incentivesAmount = incentives || 0;
-    const deductionsAmount = deductions || 0;
-    const totalAmount = parseFloat(baseSalary) + parseFloat(incentivesAmount) - parseFloat(deductionsAmount);
+    const incentivesAmount = parseFloat(incentives) || 0;
+    const deductionsAmount = parseFloat(deductions) || 0;
+    const baseSalaryAmount = parseFloat(baseSalary);
+
+    if (isNaN(baseSalaryAmount) || baseSalaryAmount < 0) {
+      return res.status(400).json({ error: 'Invalid base salary amount' });
+    }
+
+    if (isNaN(incentivesAmount) || incentivesAmount < 0) {
+      return res.status(400).json({ error: 'Invalid incentives amount' });
+    }
+
+    if (isNaN(deductionsAmount) || deductionsAmount < 0) {
+      return res.status(400).json({ error: 'Invalid deductions amount' });
+    }
+
+    const totalAmount = baseSalaryAmount + incentivesAmount - deductionsAmount;
+
+    console.log('Inserting salary:', { actualEmployeeId, totalAmount, month, year, baseSalaryAmount, incentivesAmount, deductionsAmount, status: status || 'pending' });
 
     const result = await new Promise((resolve, reject) => {
       db.run(
         'INSERT INTO salaries (employee_id, amount, month, year, base_salary, incentives, deductions, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [employeeId, totalAmount, month, year, baseSalary, incentivesAmount, deductionsAmount, status || 'pending'],
+        [actualEmployeeId, totalAmount, month, year, baseSalaryAmount, incentivesAmount, deductionsAmount, status || 'pending'],
         function(err) {
           if (err) reject(err);
           else resolve(this.lastID);
@@ -129,11 +160,11 @@ exports.createSalary = async (req, res) => {
       message: 'Salary record created successfully',
       salary: {
         id: result,
-        employee_id: employeeId,
+        employee_id: actualEmployeeId,
         amount: totalAmount,
         month,
         year,
-        base_salary: baseSalary,
+        base_salary: baseSalaryAmount,
         incentives: incentivesAmount,
         deductions: deductionsAmount,
         status: status || 'pending'

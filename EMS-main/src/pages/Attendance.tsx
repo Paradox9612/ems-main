@@ -89,7 +89,7 @@ export const Attendance: React.FC = () => {
       if (!isAdmin && user) {
         const today = new Date().toISOString().split('T')[0];
         if (selectedDate === today) {
-          const existing = transformedRecords.find((r: AttendanceRecord) => r.employee_id === parseInt(user.id) && r.date === today);
+          const existing = transformedRecords.find((r: AttendanceRecord) => r.date === today);
           setTodayRecord(existing || null);
         } else {
           setTodayRecord(null);

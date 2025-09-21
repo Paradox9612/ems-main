@@ -44,7 +44,7 @@ exports.getEmployeeSalaries = async (req, res) => {
 
     // If not admin, only allow viewing own salaries
     let actualEmployeeId = employeeId;
-    if (!req.user.role === 'admin') {
+    if (req.user.role !== 'admin') {
       // Find employee's employee_id from user_id
       const employee = await new Promise((resolve, reject) => {
         db.get('SELECT id FROM employees WHERE user_id = ?', [userId], (err, row) => {
@@ -52,6 +52,11 @@ exports.getEmployeeSalaries = async (req, res) => {
           else resolve(row);
         });
       });
+
+      if (!employee) {
+        return res.status(404).json({ error: 'Employee record not found' });
+      }
+
       actualEmployeeId = employee.id;
     }
 
@@ -304,6 +309,53 @@ exports.getSalaryStats = async (req, res) => {
     });
   } catch (error) {
     console.error('Get salary stats error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+exports.getMySalaries = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Find employee's employee_id from user_id
+    const employee = await new Promise((resolve, reject) => {
+      db.get('SELECT id FROM employees WHERE user_id = ?', [userId], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    if (!employee) {
+      return res.status(404).json({ error: 'Employee record not found' });
+    }
+
+    const query = `
+      SELECT
+        s.id,
+        s.employee_id,
+        s.amount,
+        s.month,
+        s.year,
+        s.paid_at,
+        s.base_salary,
+        s.incentives,
+        s.deductions,
+        s.status
+      FROM salaries s
+      WHERE s.employee_id = ?
+      ORDER BY s.year DESC, s.month DESC
+    `;
+
+    const salaries = await new Promise((resolve, reject) => {
+      db.all(query, [employee.id], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+
+    res.json({ salaries });
+  } catch (error) {
+    console.error('Get my salaries error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

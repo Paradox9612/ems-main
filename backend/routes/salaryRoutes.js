@@ -9,6 +9,9 @@ router.get('/', authenticateToken, requireAdmin, salaryController.getAllSalaries
 // GET /api/salaries/employee/:employeeId - Get salaries for specific employee
 router.get('/employee/:employeeId', authenticateToken, salaryController.getEmployeeSalaries);
 
+// GET /api/salaries/my - Get current user's own salaries
+router.get('/my', authenticateToken, salaryController.getMySalaries);
+
 // POST /api/salaries - Create new salary record (admin only)
 router.post('/', authenticateToken, requireAdmin, salaryController.createSalary);
 

@@ -170,6 +170,34 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
           )}
 
+          {/* Salary Section */}
+          {salaryStats && (
+            <div className="p-4 border-t border-gray-700">
+              <div className="flex items-center space-x-2 mb-3">
+                <TrendingUp className="h-4 w-4 text-green-400" />
+                <span className="text-sm font-medium text-white">Salary Overview</span>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-300">Total Paid:</span>
+                  <span className="text-green-400 font-medium">${salaryStats.totalPaid.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-300">Pending:</span>
+                  <span className="text-yellow-400 font-medium">${salaryStats.totalPending.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-300">Average:</span>
+                  <span className="text-blue-400 font-medium">${Math.round(salaryStats.averageSalary).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-300">Records:</span>
+                  <span className="text-purple-400 font-medium">{salaryStats.totalRecords}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Profile at bottom */}
           <div className="p-4 border-t border-gray-700">
             <div className="flex items-center space-x-3">

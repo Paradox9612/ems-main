@@ -94,7 +94,7 @@ export const Salary: React.FC = () => {
       if (isAdmin) {
         endpoint = `${API_BASE_URL}/salaries`;
       } else {
-        endpoint = `${API_BASE_URL}/salaries/employee/${user?.id}`;
+        endpoint = `${API_BASE_URL}/salaries/my`;
       }
 
       const response = await fetch(endpoint, {
@@ -281,9 +281,6 @@ export const Salary: React.FC = () => {
       // Reload salary records and stats
       await loadSalaryRecords();
       await loadSalaryStats();
-
-      // Notify other components about salary update
-      window.dispatchEvent(new CustomEvent('salaryUpdated'));
 
       // Notify other components about salary update
       window.dispatchEvent(new CustomEvent('salaryUpdated'));

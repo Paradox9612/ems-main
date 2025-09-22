@@ -34,33 +34,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Auto-login disabled - users must login manually each time
   useEffect(() => {
-    const verifyToken = async () => {
-      const token = localStorage.getItem('authToken');
-      if (token) {
-        try {
-          const response = await fetch(`${API_BASE_URL}/verify`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          if (response.ok) {
-            const data = await response.json();
-            setUser(data.user);
-          } else {
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('currentUser');
-          }
-        } catch (error) {
-          console.error('Token verification failed:', error);
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('currentUser');
-        }
-      }
-      setLoading(false);
-    };
-
-    verifyToken();
+    setLoading(false);
   }, []);
 
   const signIn = async (email: string, password: string) => {

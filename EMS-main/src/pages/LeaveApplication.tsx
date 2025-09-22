@@ -241,15 +241,13 @@ const LeaveApplication: React.FC = () => {
                   onChange={(e) => setDepartment(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                 >
-                  <option value="Web Developer">Web Developer</option>
-                  <option value="Database">Database Engineer</option>
-                  <option value="Team Leader">Team Lead</option>
-                  <option value="Product Manager">Produc Manager</option>
+                  <option value="Web Development">Web Development</option>
+                <option value="Marketing">Marketing</option>
+                  <option value="Operations">Operations</option>
                   <option value="HR">HR</option>
-                  <option value="MERN Stack Developer">MERN Stack Developer</option>
-                  <option value="Backend Engineer">Backend Engineer</option>
+                  <option value="App Development">App Development</option>
                   <option value="Sales">Sales</option>
-                  <option value="Visual Design">Visual Design</option>
+                  <option value="Visual Designing">Visual Designing</option>
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">

@@ -34,18 +34,11 @@ interface Employee {
   name?: string; // For backward compatibility
 }
 
-interface SalaryStats {
-  totalPaid: number;
-  totalPending: number;
-  averageSalary: number;
-  totalRecords: number;
-}
 
 export const Salary: React.FC = () => {
   const { isAdmin, user } = useAuth();
   const [salaryRecords, setSalaryRecords] = useState<SalaryRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [stats, setStats] = useState<SalaryStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingRecord, setEditingRecord] = useState<SalaryRecord | null>(null);
@@ -115,36 +108,10 @@ export const Salary: React.FC = () => {
     }
   };
 
-  const loadSalaryStats = async () => {
-    try {
-      const token = localStorage.getItem('authToken');
-      let endpoint = '';
-
-      if (isAdmin) {
-        endpoint = `${API_BASE_URL}/salaries/stats/admin`;
-      } else {
-        endpoint = `${API_BASE_URL}/salaries/stats/employee`;
-      }
-
-      const response = await fetch(endpoint, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data);
-      }
-    } catch (error) {
-      console.error('Error loading salary stats:', error);
-    }
-  };
 
   useEffect(() => {
     loadEmployees();
     loadSalaryRecords();
-    loadSalaryStats();
   }, [isAdmin, user]);
 
   const handleSave = async (e: React.FormEvent) => {
@@ -252,9 +219,8 @@ export const Salary: React.FC = () => {
         throw new Error(error.error || 'Failed to delete salary record');
       }
 
-      // Reload salary records and stats
+      // Reload salary records
       await loadSalaryRecords();
-      await loadSalaryStats();
     } catch (error) {
       console.error('Error deleting salary record:', error);
       alert('Failed to delete salary record. Please try again.');
@@ -278,9 +244,8 @@ export const Salary: React.FC = () => {
         throw new Error(error.error || 'Failed to update salary status');
       }
 
-      // Reload salary records and stats
+      // Reload salary records
       await loadSalaryRecords();
-      await loadSalaryStats();
 
       // Notify other components about salary update
       window.dispatchEvent(new CustomEvent('salaryUpdated'));

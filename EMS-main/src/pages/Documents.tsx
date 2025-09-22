@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FileText, Upload, Download, Trash2, Search, Eye, File, FolderOpen } from 'lucide-react';
+import { FileText, Upload, Download, Trash2, Search, FolderOpen } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 
@@ -63,7 +63,7 @@ export const Documents: React.FC = () => {
       const transformedDocs = docs.map((doc: any) => ({
         ...doc,
         employeeName: doc.firstName && doc.lastName ? `${doc.firstName} ${doc.lastName}` : undefined,
-        name: doc.file_path, // Use file_path as name for display
+        name: `Document ${doc.id}.pdf`, // Use generic name since stored in Cloudinary
         category: doc.document_type,
         uploadDate: doc.uploaded_at ? new Date(doc.uploaded_at).toISOString().split('T')[0] : '',
         size: doc.file_size || 0 // Use actual file size from database
@@ -156,10 +156,6 @@ export const Documents: React.FC = () => {
     }
   };
 
-  const handlePreview = (doc: Document) => {
-    // For now, just download as preview
-    handleDownload(doc);
-  };
 
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this document?')) return;
@@ -380,12 +376,6 @@ export const Documents: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
-                        <button
-                          onClick={() => handlePreview(doc)}
-                          className="text-blue-600 hover:text-blue-900 p-2 rounded-lg hover:bg-blue-50"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
                         <button
                           onClick={() => handleDownload(doc)}
                           className="text-green-600 hover:text-green-900 p-2 rounded-lg hover:bg-green-50"

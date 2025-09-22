@@ -215,7 +215,7 @@ export const Salary: React.FC = () => {
       });
     } catch (error) {
       console.error('Error saving salary record:', error);
-      alert('Failed to save salary record. Please try again.');
+      alert((error as Error).message || 'Failed to save salary record. Please try again.');
     } finally {
       setLoading(false);
     }

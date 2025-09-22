@@ -129,7 +129,7 @@ const LeaveApplication: React.FC = () => {
 
       // Reset form
       setLeaveType("Sick Leave");
-      setDepartment("Logistic");
+      setDepartment("Web Developer");
       setStartDate("");
       setEndDate("");
       setReason("");
@@ -241,9 +241,15 @@ const LeaveApplication: React.FC = () => {
                   onChange={(e) => setDepartment(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                 >
-                  <option value="Logistic">Logistic</option>
-                  <option value="Database">Database</option>
+                  <option value="Web Developer">Web Developer</option>
+                  <option value="Database">Database Engineer</option>
+                  <option value="Team Leader">Team Lead</option>
+                  <option value="Product Manager">Produc Manager</option>
                   <option value="HR">HR</option>
+                  <option value="MERN Stack Developer">MERN Stack Developer</option>
+                  <option value="Backend Engineer">Backend Engineer</option>
+                  <option value="Sales">Sales</option>
+                  <option value="Visual Design">Visual Design</option>
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">

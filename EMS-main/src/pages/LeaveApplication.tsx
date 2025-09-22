@@ -25,7 +25,7 @@ const LeaveApplication: React.FC = () => {
   const [leaves, setLeaves] = useState<Leave[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
+  const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected">(isAdmin ? "pending" : "all");
   const [selectedLeave, setSelectedLeave] = useState<Leave | null>(null);
   const [stats, setStats] = useState({ pending: 0, approved: 0, rejected: 0, total: 0 });
 
